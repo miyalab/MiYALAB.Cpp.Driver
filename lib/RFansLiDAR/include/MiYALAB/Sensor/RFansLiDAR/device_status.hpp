@@ -60,6 +60,10 @@ struct RFansDeviceInfo{
     unsigned short command_port;
     unsigned char motor_speed;
     unsigned int device_info;
+    unsigned short pps_encode;
+    unsigned short device_id;
+    unsigned short temperature;
+    unsigned int check_sum;
 };
 }
 }

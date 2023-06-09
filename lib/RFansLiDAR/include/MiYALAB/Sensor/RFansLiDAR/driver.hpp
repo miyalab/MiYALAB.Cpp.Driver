@@ -29,11 +29,15 @@
 // include
 //-----------------------------
 // STL
+#include <string>
+#include <memory>
 
 // Boost
+#include <boost/asio/ip/udp.hpp>
 
 // MiYALAB
 #include "packet.hpp"
+#include "device_status.hpp"
 
 //-----------------------------
 // Namespace & using
@@ -55,14 +59,14 @@ namespace Sensor{
  */
 class RFansDriver{
 public:
-    RFansDriver();
+    RFansDriver(const std::string &ip_address, const std::string &status_port, const std::string model);
     virtual ~RFansDriver();
-    bool start();
-    bool stop();
+    bool scanStart(int hz);
+    bool scanStop();
     bool getDeviceInfo();
-    
-    
+    bool getPoints();
 private:
+    std::shared_ptr<boost::asio::ip::udp::socket> socket;
 };
 }
 }
