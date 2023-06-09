@@ -33,7 +33,7 @@
 #include <memory>
 
 // Boost
-#include <boost/asio/ip/udp.hpp>
+#include <boost/asio.hpp>
 
 // MiYALAB
 #include "packet.hpp"
@@ -59,14 +59,16 @@ namespace Sensor{
  */
 class RFansDriver{
 public:
-    RFansDriver(const std::string &ip_address, const std::string &status_port, const std::string model);
+    RFansDriver(const std::string &ip_address, const int &status_port, const std::string &model);
     virtual ~RFansDriver();
-    bool scanStart(int hz);
+    bool scanStart(const int &hz);
     bool scanStop();
-    bool getDeviceInfo();
+    bool getDeviceInfo(RFansDeviceStatus *status);
     bool getPoints();
 private:
-    std::shared_ptr<boost::asio::ip::udp::socket> socket;
+    std::shared_ptr<boost::asio::ip::udp::socket> status_socket;
+    std::shared_ptr<boost::asio::ip::udp::socket> points_socket;
+    std::shared_ptr<boost::asio::ip::udp::socket> command_socket;
 };
 }
 }

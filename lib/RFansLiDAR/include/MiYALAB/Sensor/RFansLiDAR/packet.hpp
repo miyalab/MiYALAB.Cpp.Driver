@@ -46,18 +46,18 @@
  */
 namespace MiYALAB {
 namespace Sensor{
-struct RFansPointGroup{
+struct RFansPointsGroup{
     unsigned short flag;
     unsigned short angle;
     std::vector<unsigned short> points;
     std::vector<unsigned char>  intensity;
 };
 
-struct RFansPointPacket{
+struct RFansPointsPacket{
 public:
     unsigned short factory;
     unsigned int timestamp;
-    std::vector<RFansPointGroup> group;
+    std::vector<RFansPointsGroup> group;
 };
 }
 }

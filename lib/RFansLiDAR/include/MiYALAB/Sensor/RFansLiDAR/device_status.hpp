@@ -46,24 +46,24 @@
  */
 namespace MiYALAB {
 namespace Sensor{
-struct RFansDeviceInfo{
-    unsigned int header;
-    unsigned short id;
-    int year;
-    int month;
-    int day;
-    int hour;
-    int minute;
-    int second;
-    std::string mac_address;
-    unsigned short point_port;
-    unsigned short command_port;
-    unsigned char motor_speed;
-    unsigned int device_info;
-    unsigned short pps_encode;
-    unsigned short device_id;
-    unsigned short temperature;
-    unsigned int check_sum;
+struct RFansDeviceStatus{
+    unsigned int header = 0;
+    unsigned int id = 0;
+    int year = 0;
+    int month = 0;
+    int day = 0;
+    int hour = 0;
+    int minute = 0;
+    int second = 0;
+    std::string mac_address = "";
+    int points_port = 0;
+    int command_port = 0;
+    double motor_speed = 0;
+    int device_info = 0;
+    unsigned int pps_encode = 0;
+    unsigned int device_id = 0;
+    double temperature = 0;
+    unsigned int check_sum = 0;
 };
 }
 }
