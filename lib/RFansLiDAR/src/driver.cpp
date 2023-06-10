@@ -35,6 +35,7 @@
 
 // MiYALAB
 #include "MiYALAB/Sensor/RFansLiDAR/driver.hpp"
+#include "MiYALAB/Sensor/RFansLiDAR/parameter_define.hpp"
 
 //-----------------------------
 // Namespace & using
@@ -43,9 +44,9 @@ using namespace boost::asio;
 using namespace boost::asio::ip;    
 
 //-----------------------------
-// function
+// Const value
 //-----------------------------
-template<typename T, typename U> inline void forceSet(const T *value, const U &set_value){*((T*)value) = set_value;}
+constexpr double TO_RAD = M_PI / 180;
 
 //-----------------------------
 // Method
@@ -59,6 +60,11 @@ namespace Sensor{
 
 RFansDriver::RFansDriver(const std::string &ip_address, const int &status_port, const std::string &model)
 {
+    for(int i=0; i<4; i++){
+        if(model == RFansParams::MODEL_NAME[i]) this->forceSet(&this->MODEL, i);
+    }
+    if(MODEL == -1) throw "The input model name does not match: " + model;
+
     io_service io;
     this->status_socket = std::make_shared<udp::socket>(io, udp::endpoint(udp::v4(), status_port));
 
@@ -72,12 +78,14 @@ RFansDriver::RFansDriver(const std::string &ip_address, const int &status_port, 
 
 RFansDriver::~RFansDriver()
 {
-
+    status_socket = nullptr;
+    points_socket = nullptr;
+    command_socket = nullptr;
 }
 
 bool RFansDriver::scanStart(const int &hz)
 {
-
+    this->forceSet(&this->ANGULAR_VELOCITY, hz * (360.0 / 1e6));
 }
 
 bool RFansDriver::scanStop()
@@ -94,15 +102,15 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     if(len < 256) return false;
     status->header = (recv_data[0] & 0xff) << 24 | (recv_data[1] & 0xff) << 16 | (recv_data[2] & 0xff) << 8 | (recv_data[3] & 0xff);
     status->id     = (recv_data[4] & 0xff) << 24 | (recv_data[5] & 0xff) << 16 | (recv_data[6] & 0xff) << 8 | (recv_data[7] & 0xff);
-    status->year   = 2000 + recv_data[8];
-    status->month  = recv_data[9];
-    status->day    = recv_data[10];
-    status->hour   = recv_data[11];
-    status->minute = recv_data[12];
-    status->second = recv_data[13];
+    status->year   = 2000 + recv_data[8]  & 0xff;
+    status->month  = recv_data[9] & 0xff;
+    status->day    = recv_data[10] & 0xff;
+    status->hour   = recv_data[11] & 0xff;
+    status->minute = recv_data[12] & 0xff;
+    status->second = recv_data[13] & 0xff;
     std::snprintf(buf, 32, "%02x:%02x:%02x:%02x:%02x:%02x", recv_data[14]&0xff, recv_data[15]&0xff, recv_data[16]&0xff, recv_data[17]&0xff, recv_data[18]&0xff, recv_data[19]&0xff);
     status->mac_address  = buf;
-    status->points_port   = (recv_data[20] & 0xff) << 8 | (recv_data[21] & 0xff);
+    status->points_port  = (recv_data[20] & 0xff) << 8 | (recv_data[21] & 0xff);
     status->command_port = (recv_data[22] & 0xff) << 8 | (recv_data[23] & 0xff);
     status->motor_speed  = (recv_data[24] & 0xff) / 10.0;
     status->device_info  = (recv_data[25] & 0xff) << 24 | (recv_data[26] & 0xff) << 16 | (recv_data[27] & 0xff) << 8 | (recv_data[28] & 0xff);
@@ -142,10 +150,12 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
     }
 
     for(const auto &packet: packets){
-        for(const auto &group: packet.groups){
-            MiYALAB::Mathematics::Polar32 polar;
+        for(const auto &group: packet.groups){            
             for(int i=0; i<32; i++){
+                MiYALAB::Mathematics::Polar32 polar;
                 polar.range = group.ranges[i];
+                polar.yaw   = -(group.angle + RFansParams::HORIZONTAL_THETA[this->MODEL][i] + this->ANGULAR_VELOCITY * RFansParams::DELTA_TIME_US[this->MODEL][i]) * TO_RAD;
+                polar.pitch = RFansParams::VERTICAL_THETA[this->MODEL][i] * TO_RAD;
             }
         }
     }

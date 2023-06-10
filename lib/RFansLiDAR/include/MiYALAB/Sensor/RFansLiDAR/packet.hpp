@@ -48,9 +48,9 @@ namespace MiYALAB {
 namespace Sensor{
 struct RFansPointsGroup{
     unsigned short flag;
-    double angle;
-    std::vector<double> ranges;
-    std::vector<double>  intensity;
+    double angle;                   // [deg]
+    std::vector<double> ranges;     // [m]
+    std::vector<double> intensity; // [0.0~1.0(%)]
 };
 
 struct RFansPointsPacket{
