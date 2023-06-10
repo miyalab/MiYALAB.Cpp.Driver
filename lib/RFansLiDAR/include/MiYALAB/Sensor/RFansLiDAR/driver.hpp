@@ -68,7 +68,7 @@ public:
     bool getPoints(MiYALAB::Sensor::PolarCloud *polars);
 private:
     const int MODEL = -1;
-    const int ANGULAR_VELOCITY = 0; // [deg/us]
+    const int HZ = 0;
     const std::string IP_ADDRESS = "192.168.0.3";
     template<typename T, typename U> static void forceSet(const T *value, const U &set_value){*((T*)value) = set_value;}
     std::shared_ptr<boost::asio::ip::udp::socket> status_socket;

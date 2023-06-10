@@ -85,12 +85,18 @@ RFansDriver::~RFansDriver()
 
 bool RFansDriver::scanStart(const int &hz)
 {
-    this->forceSet(&this->ANGULAR_VELOCITY, hz * (360.0 / 1e6));
+    if(hz != 5 && hz != 10 && hz != 15 && hz != 20) return false;
+    this->forceSet(&this->HZ, hz);
+
+    return true;
 }
 
 bool RFansDriver::scanStop()
 {
+    this->forceSet(&this->HZ, 0);
 
+
+    return true;
 }
 
 bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
@@ -103,7 +109,7 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     status->header = (recv_data[0] & 0xff) << 24 | (recv_data[1] & 0xff) << 16 | (recv_data[2] & 0xff) << 8 | (recv_data[3] & 0xff);
     status->id     = (recv_data[4] & 0xff) << 24 | (recv_data[5] & 0xff) << 16 | (recv_data[6] & 0xff) << 8 | (recv_data[7] & 0xff);
     status->year   = 2000 + recv_data[8]  & 0xff;
-    status->month  = recv_data[9] & 0xff;
+    status->month  = recv_data[9]  & 0xff;
     status->day    = recv_data[10] & 0xff;
     status->hour   = recv_data[11] & 0xff;
     status->minute = recv_data[12] & 0xff;
@@ -123,8 +129,12 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
 
 bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
 {
+    if(this->HZ == 0) return false;
+
+    const double angular_velocity = this->HZ * 360 / 1e9;   // [deg/us]
+    const double loop_count = 10.0 / (0.09 * this->HZ / 5.0);
     std::vector<RFansPointsPacket> packets;
-    while(1){
+    for(int k=0; k<loop_count; k++){
         boost::array<char, 2048> recv_data;
         udp::endpoint endpoint;
         size_t len = points_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
@@ -145,7 +155,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
             }
         }
         packet.timestamp = (recv_data[1200] & 0xff) | (recv_data[1201] & 0xff) << 8 | (recv_data[1202] & 0xff) << 16 | (recv_data[1203] & 0xff) << 24;
-        packet.factory = (recv_data[1204] && 0xff) << 8 | (recv_data[1205] & 0xff);
+        packet.factory   = (recv_data[1204] & 0xff) << 8 | (recv_data[1205] & 0xff);
         packets.emplace_back(packet);
     }
 
@@ -154,7 +164,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
             for(int i=0; i<32; i++){
                 MiYALAB::Mathematics::Polar32 polar;
                 polar.range = group.ranges[i];
-                polar.yaw   = -(group.angle + RFansParams::HORIZONTAL_THETA[this->MODEL][i] + this->ANGULAR_VELOCITY * RFansParams::DELTA_TIME_US[this->MODEL][i]) * TO_RAD;
+                polar.yaw   = -(group.angle + RFansParams::HORIZONTAL_THETA[this->MODEL][i] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][i]) * TO_RAD;
                 polar.pitch = RFansParams::VERTICAL_THETA[this->MODEL][i] * TO_RAD;
             }
         }
