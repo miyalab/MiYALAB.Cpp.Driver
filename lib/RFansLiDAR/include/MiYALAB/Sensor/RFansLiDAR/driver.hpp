@@ -67,6 +67,10 @@ public:
     bool getDeviceInfo(RFansDeviceStatus *status);
     bool getPoints(MiYALAB::Sensor::PolarCloud *polars);
 private:
+    const int MODEL = -1;
+    const int ANGULAR_VELOCITY = 0; // [deg/us]
+    const std::string IP_ADDRESS = "192.168.0.3";
+    template<typename T, typename U> static void forceSet(const T *value, const U &set_value){*((T*)value) = set_value;}
     std::shared_ptr<boost::asio::ip::udp::socket> status_socket;
     std::shared_ptr<boost::asio::ip::udp::socket> points_socket;
     std::shared_ptr<boost::asio::ip::udp::socket> command_socket;
