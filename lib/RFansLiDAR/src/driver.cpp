@@ -43,6 +43,11 @@ using namespace boost::asio;
 using namespace boost::asio::ip;    
 
 //-----------------------------
+// function
+//-----------------------------
+template<typename T, typename U> inline void forceSet(const T *value, const U &set_value){*((T*)value) = set_value;}
+
+//-----------------------------
 // Method
 //-----------------------------
 /**
@@ -108,13 +113,42 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     return true;
 }
 
-bool RFansDriver::getPoints()
+bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
 {
-    boost::array<char, 2048> recv_data;
-    udp::endpoint endpoint;
-    size_t len = points_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
-    if(len < 1206) return false;
+    std::vector<RFansPointsPacket> packets;
+    while(1){
+        boost::array<char, 2048> recv_data;
+        udp::endpoint endpoint;
+        size_t len = points_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
+        if(len < 1206) continue;
 
+        RFansPointsPacket packet;
+        packet.groups.resize(12);
+        for(int i=0; i<12; i++){
+            auto *group = &recv_data[i*100];
+            packet.groups[i].flag  = (group[0] & 0xff) << 8 | (group[1] & 0xff);
+            packet.groups[i].angle =((group[3] & 0xff) << 8 | (group[2] & 0xff)) / 100.0;
+            packet.groups[i].ranges.resize(32);
+            packet.groups[i].intensity.resize(32);
+            for(int j=0; j<32; j++){
+                auto *point = &group[3*j+4];
+                packet.groups[i].ranges[j]    =((point[1] & 0xff) << 8 | (point[0] & 0xff)) * 0.004;
+                packet.groups[i].intensity[j] = (point[3] & 0xff) / 255.0;
+            }
+        }
+        packet.timestamp = (recv_data[1200] & 0xff) | (recv_data[1201] & 0xff) << 8 | (recv_data[1202] & 0xff) << 16 | (recv_data[1203] & 0xff) << 24;
+        packet.factory = (recv_data[1204] && 0xff) << 8 | (recv_data[1205] & 0xff);
+        packets.emplace_back(packet);
+    }
+
+    for(const auto &packet: packets){
+        for(const auto &group: packet.groups){
+            MiYALAB::Mathematics::Polar32 polar;
+            for(int i=0; i<32; i++){
+                polar.range = group.ranges[i];
+            }
+        }
+    }
 
     return true;
 }

@@ -36,6 +36,7 @@
 #include <boost/asio.hpp>
 
 // MiYALAB
+#include <MiYALAB/Sensor/PointCloud/PolarCloud.hpp>
 #include "packet.hpp"
 #include "device_status.hpp"
 
@@ -64,7 +65,7 @@ public:
     bool scanStart(const int &hz);
     bool scanStop();
     bool getDeviceInfo(RFansDeviceStatus *status);
-    bool getPoints();
+    bool getPoints(MiYALAB::Sensor::PolarCloud *polars);
 private:
     std::shared_ptr<boost::asio::ip::udp::socket> status_socket;
     std::shared_ptr<boost::asio::ip::udp::socket> points_socket;
