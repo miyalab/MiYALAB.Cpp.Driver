@@ -60,18 +60,22 @@ namespace Sensor{
 
 RFansDriver::RFansDriver(const std::string &ip_address, const int &status_port, const std::string &model)
 {
+    // 型番チェック
     for(int i=0; i<4; i++){
         if(model == RFansParams::MODEL_NAME[i]) this->forceSet(&this->MODEL, i);
     }
     if(MODEL == -1) throw "The input model name does not match: " + model;
 
+    // デバイス情報ポート接続
     io_service io;
     this->status_socket = std::make_shared<udp::socket>(io, udp::endpoint(udp::v4(), status_port));
 
+    // デバイス情報取得
     RFansDeviceStatus status;
     for(int i=0; i<10 || !this->getDeviceInfo(&status); i++);
     if(status.mac_address == "") return;
 
+    // 点群ポート,　コマンドポート接続
     this->points_socket  = std::make_shared<udp::socket>(io, udp::endpoint(udp::v4(), status.points_port));
     this->command_socket = std::make_shared<udp::socket>(io, udp::endpoint(udp::v4(), status.command_port));
 }
@@ -85,9 +89,23 @@ RFansDriver::~RFansDriver()
 
 bool RFansDriver::scanStart(const int &hz)
 {
+    // パラメータチェック
     if(hz != 5 && hz != 10 && hz != 15 && hz != 20) return false;
+    if(hz == 0) return this->scanStop();
+    
+    // パラメータラッチ
     this->forceSet(&this->HZ, hz);
 
+    // コマンド送信
+
+    // 目標スキャン速度チェック
+    int i;
+    for(i=0; i<10; i++){
+        RFansDeviceStatus status;
+        this->getDeviceInfo(&status);
+        if(hz -0.1 <= status.motor_speed && status.motor_speed <= hz + 0.1) break;
+    }
+    if(i==10) return false;
     return true;
 }
 
@@ -131,8 +149,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
 {
     if(this->HZ == 0) return false;
 
-    const double angular_velocity = this->HZ * 360 / 1e9;   // [deg/us]
-    const double loop_count = 10.0 / (0.09 * this->HZ / 5.0);
+    const double loop_count = 360.0 / (0.09 * this->HZ / 5.0) / 12.0;
     std::vector<RFansPointsPacket> packets;
     for(int k=0; k<loop_count; k++){
         boost::array<char, 2048> recv_data;
@@ -159,20 +176,24 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
         packets.emplace_back(packet);
     }
 
+    // Convert to (range - theta - phi)coordinate 
+    const double angular_velocity = this->HZ * 360 / 1e9;  // [deg/us]
     for(const auto &packet: packets){
         for(const auto &group: packet.groups){            
             for(int i=0; i<32; i++){
-                MiYALAB::Mathematics::Polar32 polar;
-                polar.range = group.ranges[i];
-                polar.yaw   = -(group.angle + RFansParams::HORIZONTAL_THETA[this->MODEL][i] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][i]) * TO_RAD;
-                polar.pitch = RFansParams::VERTICAL_THETA[this->MODEL][i] * TO_RAD;
+                if(group.ranges[i] > RFansParams::RANGE_MAX) continue;
+                polars->polars.emplace_back(
+                    group.ranges[i],
+                    -(group.angle + RFansParams::HORIZONTAL_THETA[this->MODEL][i] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][i]) * TO_RAD,
+                    RFansParams::VERTICAL_THETA[this->MODEL][i] * TO_RAD
+                );
+                polars->intensity.emplace_back(group.intensity[i]);
             }
         }
     }
 
     return true;
 }
-    
 }
 }
 
