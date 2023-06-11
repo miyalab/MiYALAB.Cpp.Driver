@@ -28,6 +28,7 @@
 // STL
 #include <string>
 #include <memory>
+#include <future>
 
 // Boost
 #include <boost/array.hpp>
@@ -122,6 +123,7 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     char buf[32];
     boost::array<char, 512> recv_data;
     udp::endpoint endpoint;
+    //auto response = std::async(std::launch::async, RFansDriver::status_socket->receive_from, this, boost::asio::buffer(recv_data), endpoint);
     size_t len = status_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
     if(len < 256) return false;
     status->header = (recv_data[0] & 0xff) << 24 | (recv_data[1] & 0xff) << 16 | (recv_data[2] & 0xff) << 8 | (recv_data[3] & 0xff);
@@ -145,7 +147,7 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     return true;
 }
 
-bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
+bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
 {
     if(this->HZ == 0) return false;
 

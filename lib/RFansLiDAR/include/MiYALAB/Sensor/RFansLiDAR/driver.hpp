@@ -36,7 +36,7 @@
 #include <boost/asio.hpp>
 
 // MiYALAB
-#include <MiYALAB/Sensor/PointCloud/PolarCloud.hpp>
+#include <MiYALAB/Sensor/PointCloud/PointCloudPolar.hpp>
 #include "packet.hpp"
 #include "device_status.hpp"
 
@@ -65,7 +65,7 @@ public:
     bool scanStart(const int &hz);
     bool scanStop();
     bool getDeviceInfo(RFansDeviceStatus *status);
-    bool getPoints(MiYALAB::Sensor::PolarCloud *polars);
+    bool getPoints(MiYALAB::Sensor::PointCloudPolar *polars);
 private:
     const int MODEL = -1;
     const int HZ = 0;
