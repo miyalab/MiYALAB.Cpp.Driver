@@ -178,16 +178,15 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PolarCloud *polars)
 
     // Convert to (range - theta - phi)coordinate 
     const double angular_velocity = this->HZ * 360 / 1e9;  // [deg/us]
-    for(const auto &packet: packets){
-        for(const auto &group: packet.groups){            
-            for(int i=0; i<32; i++){
-                if(group.ranges[i] > RFansParams::RANGE_MAX) continue;
+    for(int i=0, packets_size=packets.size(); i<packets_size; i++){
+        for(int j=0, group_size=packets[i].groups.size(); j<group_size; j++){
+            for(int k=0, ranges_size=packets[i].groups[j].ranges.size(); k<ranges_size; k++){
                 polars->polars.emplace_back(
-                    group.ranges[i],
-                    -(group.angle + RFansParams::HORIZONTAL_THETA[this->MODEL][i] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][i]) * TO_RAD,
-                    RFansParams::VERTICAL_THETA[this->MODEL][i] * TO_RAD
+                    packets[i].groups[j].ranges[k],
+                    -(packets[i].groups[j].angle + RFansParams::HORIZONTAL_THETA[this->MODEL][k] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][k]) * TO_RAD,
+                    RFansParams::VERTICAL_THETA[this->MODEL][k] * TO_RAD
                 );
-                polars->intensity.emplace_back(group.intensity[i]);
+                polars->intensity.emplace_back(packets[i].groups[j].intensity[k]);
             }
         }
     }
