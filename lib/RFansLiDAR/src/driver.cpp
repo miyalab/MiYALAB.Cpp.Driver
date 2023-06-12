@@ -230,8 +230,8 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
                 );
                 polars->intensity.emplace_back(packets[i].groups[j].intensity[k]);
                 int index = polars->polars.size()-1;
-                if(polars->polars[index].theta < -M_PI) polars->polars[index].theta += 2.0f * M_PI;
-                if(polars->polars[index].theta >  M_PI) polars->polars[index].theta -= 2.0f * M_PI;
+                if(polars->polars[index].theta < -M_PI)      polars->polars[index].theta += 2.0 * M_PI;
+                else if(polars->polars[index].theta >  M_PI) polars->polars[index].theta -= 2.0 * M_PI;
             }
         }
     }
