@@ -101,6 +101,7 @@ RFansDriver::RFansDriver(const std::string &ip_address, const int &status_port, 
 
 RFansDriver::~RFansDriver()
 {
+    this->scanStop();
     status_socket = nullptr;
     points_socket = nullptr;
     command_socket = nullptr;
@@ -224,10 +225,13 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
                 if(packets[i].groups[j].ranges[k] > RFansParams::RANGE_MAX) continue;
                 polars->polars.emplace_back(
                     packets[i].groups[j].ranges[k],
-                    -(packets[i].groups[j].angle + RFansParams::HORIZONTAL_THETA[this->MODEL][k] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][k]) * TO_RAD,
+                    -(packets[i].groups[j].angle -180.0 + RFansParams::HORIZONTAL_THETA[this->MODEL][k] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][k]) * TO_RAD,
                     RFansParams::VERTICAL_THETA[this->MODEL][k] * TO_RAD
                 );
                 polars->intensity.emplace_back(packets[i].groups[j].intensity[k]);
+                int index = polars->polars.size()-1;
+                if(polars->polars[index].theta < -M_PI) polars->polars[index].theta += 2.0f * M_PI;
+                if(polars->polars[index].theta >  M_PI) polars->polars[index].theta -= 2.0f * M_PI;
             }
         }
     }

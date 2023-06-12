@@ -1,5 +1,6 @@
 #include <iostream>
 #include <chrono>
+#include <cmath>
 
 #include <opencv2/opencv.hpp>
 
@@ -37,10 +38,14 @@ int main(int argc, char **argv)
 
         constexpr double res = 0.02;
         cv::Mat img(1000, 1000, CV_8UC3, cv::Scalar(0,0,0));
+        float max = -1e9;
+        float min = 1e9;
         for(int i=0, size=polars.polars.size(); i<size; i++){
+            max = std::max(max, polars.polars[i].theta);
+            min = std::min(min, polars.polars[i].theta);
             // std::cout << "calc xyz..." << std::endl;
-            double x = polars.polars[i].range * std::cos(polars.polars[i].phi) * std::cos(polars.polars[i].theta - M_PI);
-            double y = polars.polars[i].range * std::cos(polars.polars[i].phi) * std::sin(polars.polars[i].theta - M_PI);
+            double x = polars.polars[i].range * std::cos(polars.polars[i].phi) * std::cos(polars.polars[i].theta);
+            double y = polars.polars[i].range * std::cos(polars.polars[i].phi) * std::sin(polars.polars[i].theta);
             double z = polars.polars[i].range * std::sin(polars.polars[i].phi);
             // std::cout << "calc finish" << std::endl;
             int px = img.cols/2 - y/res;
@@ -53,6 +58,7 @@ int main(int argc, char **argv)
         }
 
         cv::imshow("img", img);
+        std::cout << "(" << min << ", " << max << ")" << std::endl;
     }
 
     rfans.scanStop();
