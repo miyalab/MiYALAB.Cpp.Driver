@@ -43,8 +43,10 @@ set(LIBS
   MiYALAB.Cpp
   MiYALAB.Cpp.Sensor.RFansLiDAR
   opencv_core
-  opencv_videoio
+  opencv_highgui
+  opencv_imgcodecs
   opencv_imgproc
+  opencv_videoio
 )
 #ソースコードのコンパイル
 foreach(target IN LISTS SRC)

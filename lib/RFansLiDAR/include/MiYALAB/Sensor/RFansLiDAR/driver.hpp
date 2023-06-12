@@ -69,6 +69,7 @@ public:
 private:
     const int MODEL = -1;
     const int HZ = 0;
+    const int COMMAND_PORT = 2015;
     const std::string IP_ADDRESS = "192.168.0.3";
     template<typename T, typename U> static void forceSet(const T *value, const U &set_value){*((T*)value) = set_value;}
     std::shared_ptr<boost::asio::ip::udp::socket> status_socket;

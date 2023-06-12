@@ -26,6 +26,7 @@
 // include
 //-----------------------------
 // STL
+#include <iostream>
 #include <string>
 #include <memory>
 #include <future>
@@ -48,6 +49,21 @@ using namespace boost::asio::ip;
 // Const value
 //-----------------------------
 constexpr double TO_RAD = M_PI / 180;
+
+constexpr unsigned char CMD_SETTING_SET[18] = {
+    0xA5, 0x72, 0x00, 0x70, 0x00, 0x00, 0x00, 0x02,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00
+};
+constexpr unsigned char CMD_SCAN_START[][18] = {
+    {0xA5, 0x42, 0x00, 0x40, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0xA5, 0x43, 0x00, 0x40, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0xA5, 0x93, 0x00, 0x40, 0x00, 0x00, 0x00, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+    {0xA5, 0x33, 0x00, 0x40, 0x00, 0x00, 0x00, 0xF3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+};
+constexpr unsigned char CMD_SCAN_STOP[18] = {
+    0xA5, 0x40, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 //-----------------------------
 // Method
@@ -77,6 +93,8 @@ RFansDriver::RFansDriver(const std::string &ip_address, const int &status_port, 
     if(status.mac_address == "") return;
 
     // 点群ポート,　コマンドポート接続
+    this->forceSet(&this->IP_ADDRESS, *((std::string*)&ip_address));
+    this->forceSet(&this->COMMAND_PORT, status.command_port);
     this->points_socket  = std::make_shared<udp::socket>(io, udp::endpoint(udp::v4(), status.points_port));
     this->command_socket = std::make_shared<udp::socket>(io, udp::endpoint(udp::v4(), status.command_port));
 }
@@ -91,13 +109,25 @@ RFansDriver::~RFansDriver()
 bool RFansDriver::scanStart(const int &hz)
 {
     // パラメータチェック
-    if(hz != 5 && hz != 10 && hz != 15 && hz != 20) return false;
-    if(hz == 0) return this->scanStop();
+    int command_num = -1;
+    if(hz == 0)       command_num = 0;
+    else if(hz == 5 ) command_num = 1;
+    else if(hz == 10) command_num = 2;
+    else if(hz == 20) command_num = 3;
+    if(command_num == -1) return false;
     
     // パラメータラッチ
     this->forceSet(&this->HZ, hz);
 
     // コマンド送信
+    command_socket->send_to(
+        boost::asio::buffer(CMD_SETTING_SET),
+        udp::endpoint(address::from_string(this->IP_ADDRESS), this->COMMAND_PORT)
+    );
+    command_socket->send_to(
+        boost::asio::buffer(CMD_SCAN_START[command_num]),
+        udp::endpoint(address::from_string(this->IP_ADDRESS), this->COMMAND_PORT)
+    );
 
     // 目標スキャン速度チェック
     int i;
@@ -113,8 +143,16 @@ bool RFansDriver::scanStart(const int &hz)
 bool RFansDriver::scanStop()
 {
     this->forceSet(&this->HZ, 0);
-
-
+    
+    // コマンド送信
+    command_socket->send_to(
+        boost::asio::buffer(CMD_SETTING_SET),
+        udp::endpoint(address::from_string(this->IP_ADDRESS), this->COMMAND_PORT)
+    );
+    command_socket->send_to(
+        boost::asio::buffer(CMD_SCAN_STOP),
+        udp::endpoint(address::from_string(this->IP_ADDRESS), this->COMMAND_PORT)
+    );
     return true;
 }
 
@@ -128,7 +166,7 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     if(len < 256) return false;
     status->header = (recv_data[0] & 0xff) << 24 | (recv_data[1] & 0xff) << 16 | (recv_data[2] & 0xff) << 8 | (recv_data[3] & 0xff);
     status->id     = (recv_data[4] & 0xff) << 24 | (recv_data[5] & 0xff) << 16 | (recv_data[6] & 0xff) << 8 | (recv_data[7] & 0xff);
-    status->year   = 2000 + recv_data[8]  & 0xff;
+    status->year   = 2000 + (recv_data[8]  & 0xff);
     status->month  = recv_data[9]  & 0xff;
     status->day    = recv_data[10] & 0xff;
     status->hour   = recv_data[11] & 0xff;
@@ -150,32 +188,32 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
 bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
 {
     if(this->HZ == 0) return false;
-
-    const double loop_count = 360.0 / (0.09 * this->HZ / 5.0) / 12.0;
-    std::vector<RFansPointsPacket> packets;
+    
+    double divide = 12.0;
+    if(this->MODEL <= 1) divide *= 2;   // R-Fans-16 or R-Fans-32
+    const double loop_count = 360.0 / (0.09 * this->HZ / 5.0) / divide;
+    std::vector<RFansPointsPacket> packets(loop_count+1);
     for(int k=0; k<loop_count; k++){
         boost::array<char, 2048> recv_data;
         udp::endpoint endpoint;
         size_t len = points_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
         if(len < 1206) continue;
 
-        RFansPointsPacket packet;
-        packet.groups.resize(12);
+        packets[k].groups.resize(12);
         for(int i=0; i<12; i++){
             auto *group = &recv_data[i*100];
-            packet.groups[i].flag  = (group[0] & 0xff) << 8 | (group[1] & 0xff);
-            packet.groups[i].angle =((group[3] & 0xff) << 8 | (group[2] & 0xff)) / 100.0;
-            packet.groups[i].ranges.resize(32);
-            packet.groups[i].intensity.resize(32);
+            packets[k].groups[i].flag  = (group[0] & 0xff) << 8 | (group[1] & 0xff);
+            packets[k].groups[i].angle =((group[3] & 0xff) << 8 | (group[2] & 0xff)) / 100.0;
+            packets[k].groups[i].ranges.resize(32);
+            packets[k].groups[i].intensity.resize(32);
             for(int j=0; j<32; j++){
                 auto *point = &group[3*j+4];
-                packet.groups[i].ranges[j]    =((point[1] & 0xff) << 8 | (point[0] & 0xff)) * 0.004;
-                packet.groups[i].intensity[j] = (point[3] & 0xff) / 255.0;
+                packets[k].groups[i].ranges[j]    =((point[1] & 0xff) << 8 | (point[0] & 0xff)) * 0.004;
+                packets[k].groups[i].intensity[j] = (point[3] & 0xff) / 255.0;
             }
         }
-        packet.timestamp = (recv_data[1200] & 0xff) | (recv_data[1201] & 0xff) << 8 | (recv_data[1202] & 0xff) << 16 | (recv_data[1203] & 0xff) << 24;
-        packet.factory   = (recv_data[1204] & 0xff) << 8 | (recv_data[1205] & 0xff);
-        packets.emplace_back(packet);
+        packets[k].timestamp = (recv_data[1200] & 0xff) | (recv_data[1201] & 0xff) << 8 | (recv_data[1202] & 0xff) << 16 | (recv_data[1203] & 0xff) << 24;
+        packets[k].factory   = (recv_data[1204] & 0xff) << 8 | (recv_data[1205] & 0xff);
     }
 
     // Convert to (range - theta - phi)coordinate 
@@ -183,6 +221,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
     for(int i=0, packets_size=packets.size(); i<packets_size; i++){
         for(int j=0, group_size=packets[i].groups.size(); j<group_size; j++){
             for(int k=0, ranges_size=packets[i].groups[j].ranges.size(); k<ranges_size; k++){
+                if(packets[i].groups[j].ranges[k] > RFansParams::RANGE_MAX) continue;
                 polars->polars.emplace_back(
                     packets[i].groups[j].ranges[k],
                     -(packets[i].groups[j].angle + RFansParams::HORIZONTAL_THETA[this->MODEL][k] + angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][k]) * TO_RAD,
