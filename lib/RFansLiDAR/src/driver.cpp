@@ -167,7 +167,7 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     if(len < 256) return false;
     status->header = (recv_data[0] & 0xff) << 24 | (recv_data[1] & 0xff) << 16 | (recv_data[2] & 0xff) << 8 | (recv_data[3] & 0xff);
     status->id     = (recv_data[4] & 0xff) << 24 | (recv_data[5] & 0xff) << 16 | (recv_data[6] & 0xff) << 8 | (recv_data[7] & 0xff);
-    status->year   = 2000 + (recv_data[8]  & 0xff);
+    status->year   = (recv_data[8]  & 0xff);
     status->month  = recv_data[9]  & 0xff;
     status->day    = recv_data[10] & 0xff;
     status->hour   = recv_data[11] & 0xff;
