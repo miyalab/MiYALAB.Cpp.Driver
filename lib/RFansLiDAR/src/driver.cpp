@@ -160,14 +160,14 @@ bool RFansDriver::scanStop()
 bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
 {
     char buf[32];
-    boost::array<char, 512> recv_data;
+    boost::array<char, 256> recv_data;
     udp::endpoint endpoint;
     //auto response = std::async(std::launch::async, RFansDriver::status_socket->receive_from, this, boost::asio::buffer(recv_data), endpoint);
     size_t len = status_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
     if(len < 256) return false;
-    status->header = (recv_data[0] & 0xff) << 24 | (recv_data[1] & 0xff) << 16 | (recv_data[2] & 0xff) << 8 | (recv_data[3] & 0xff);
-    status->id     = (recv_data[4] & 0xff) << 24 | (recv_data[5] & 0xff) << 16 | (recv_data[6] & 0xff) << 8 | (recv_data[7] & 0xff);
-    status->year   = (recv_data[8]  & 0xff);
+    status->header = (recv_data[0] << 24) | (recv_data[1] << 16) | (recv_data[2] << 8) | recv_data[3];
+    status->id     = (recv_data[4] << 24) | (recv_data[5] << 16) | (recv_data[6] << 8) | recv_data[7];
+    status->year   = recv_data[8]  & 0xff;
     status->month  = recv_data[9]  & 0xff;
     status->day    = recv_data[10] & 0xff;
     status->hour   = recv_data[11] & 0xff;
@@ -178,11 +178,11 @@ bool RFansDriver::getDeviceInfo(RFansDeviceStatus *status)
     status->points_port  = (recv_data[20] & 0xff) << 8 | (recv_data[21] & 0xff);
     status->command_port = (recv_data[22] & 0xff) << 8 | (recv_data[23] & 0xff);
     status->motor_speed  = (recv_data[24] & 0xff) / 10.0;
-    status->device_info  = (recv_data[25] & 0xff) << 24 | (recv_data[26] & 0xff) << 16 | (recv_data[27] & 0xff) << 8 | (recv_data[28] & 0xff);
+    status->device_info  = (recv_data[25] << 24) | (recv_data[26] << 16) | (recv_data[27] << 8) | recv_data[28];
     status->pps_encode   = (recv_data[29] & 0xff) << 8 | (recv_data[30] & 0xff);
     status->device_id    = (recv_data[31] & 0xff) << 8 | (recv_data[32] & 0xff);
     status->temperature  =((recv_data[33] & 0xff) << 8 | (recv_data[34] & 0xff)) / 100.0;
-    status->check_sum    = (recv_data[35] & 0xff) << 24 | (recv_data[36] & 0xff) << 16 | (recv_data[37] & 0xff) << 8 | (recv_data[38] & 0xff);
+    status->check_sum    = (recv_data[35] << 24) | (recv_data[36] << 16) | (recv_data[37] << 8) | recv_data[38];
     return true;
 }
 
@@ -195,7 +195,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
     const double loop_count = 360.0 / (0.09 * this->HZ / 5.0) / divide;
     std::vector<RFansPointsPacket> packets(loop_count+1);
     for(int k=0; k<loop_count; k++){
-        boost::array<char, 2048> recv_data;
+        boost::array<char, 1206> recv_data;
         udp::endpoint endpoint;
         size_t len = points_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
         if(len < 1206) continue;
@@ -203,18 +203,18 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
         packets[k].groups.resize(12);
         for(int i=0; i<12; i++){
             auto *group = &recv_data[i*100];
-            packets[k].groups[i].flag  = (group[0] & 0xff) << 8 | (group[1] & 0xff);
-            packets[k].groups[i].angle =((group[3] & 0xff) << 8 | (group[2] & 0xff)) / 100.0;
+            packets[k].groups[i].flag  = ((group[0] << 8) | group[1]) & 0xffff;
+            packets[k].groups[i].angle =(((group[3] << 8) | group[2]) & 0xffff) / 100.0;
             packets[k].groups[i].ranges.resize(32);
             packets[k].groups[i].intensity.resize(32);
             for(int j=0; j<32; j++){
                 auto *point = &group[3*j+4];
-                packets[k].groups[i].ranges[j]    =((point[1] & 0xff) << 8 | (point[0] & 0xff)) * 0.004;
+                packets[k].groups[i].ranges[j]    =(((point[1] << 8) | point[0]) & 0xffff)* 0.004;
                 packets[k].groups[i].intensity[j] = (point[3] & 0xff) / 255.0;
             }
         }
-        packets[k].timestamp = (recv_data[1200] & 0xff) | (recv_data[1201] & 0xff) << 8 | (recv_data[1202] & 0xff) << 16 | (recv_data[1203] & 0xff) << 24;
-        packets[k].factory   = (recv_data[1204] & 0xff) << 8 | (recv_data[1205] & 0xff);
+        packets[k].timestamp = (recv_data[1200]) | (recv_data[1201] << 8) | (recv_data[1202] << 16) | (recv_data[1203] << 24);
+        packets[k].factory   =((recv_data[1204] << 8) | recv_data[1205]) & 0xffff;
     }
 
     // Convert to (range - theta - phi)coordinate 
