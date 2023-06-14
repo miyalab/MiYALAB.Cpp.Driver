@@ -25,21 +25,22 @@ int main(int argc, char **argv)
     std::printf("rps     : %lf\n", status.motor_speed);
     std::printf("temp    : %lf\n", status.temperature);
 
+    auto start = std::chrono::high_resolution_clock::now();
     while(cv::waitKey(1) != 'q'){
         // std::cout << "scan start..." << std::endl;
+        auto stop = std::chrono::high_resolution_clock::now();
+        std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(stop-start).count() / 1e6 << "ms " << std::endl;
+        start = stop;
         PointCloudPolar polars;
-        auto start = std::chrono::high_resolution_clock::now();
         if(!rfans.getPoints(&polars)){
             std::cerr << "failure lidar device scan" << std::endl;
         }
-        auto stop = std::chrono::high_resolution_clock::now();
-        std::cout << std::chrono::duration_cast<std::chrono::nanoseconds>(stop-start).count() / 1e6 << "ms - " << polars.polars.size() << std::endl;
         // std::cout << "scan finish" << std::endl;
 
         constexpr double res = 0.02;
         cv::Mat img(1000, 1000, CV_8UC3, cv::Scalar(0,0,0));
-        float max = -1e9;
-        float min = 1e9;
+        double max = -1e9;
+        double min = 1e9;
         for(int i=0, size=polars.polars.size(); i<size; i++){
             max = std::max(max, polars.polars[i].theta);
             min = std::min(min, polars.polars[i].theta);
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
         }
 
         cv::imshow("img", img);
-        std::cout << "(" << min << ", " << max << ")" << std::endl;
+        // std::cout << "(" << min << ", " << max << ")" << std::endl;
     }
 
     rfans.scanStop();
