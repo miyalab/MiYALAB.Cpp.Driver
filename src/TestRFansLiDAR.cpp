@@ -61,6 +61,6 @@ int main(int argc, char **argv)
         cv::imshow("img", img);
         // std::cout << "(" << min << ", " << max << ")" << std::endl;
     }
-
+    cv::destroyAllWindows();
     rfans.scanStop();
 }
