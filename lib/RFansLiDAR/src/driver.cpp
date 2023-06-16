@@ -214,7 +214,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
                     -(angle + RFansParams::HORIZONTAL_THETA[this->MODEL][j] + theta_time_offset[j]) * TO_RAD,
                     RFansParams::VERTICAL_THETA[this->MODEL][j] * TO_RAD
                 );
-                polars->intensity.emplace_back((point[3] & 0xff) / 255.0);
+                polars->intensity.emplace_back((point[2] & 0xff) / 255.0);
             }
             double diff = angle - angle_before;
             diff += 360.0 * (diff<0);
