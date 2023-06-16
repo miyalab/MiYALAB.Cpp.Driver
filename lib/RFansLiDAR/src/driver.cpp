@@ -212,7 +212,6 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
                 polars->polars.emplace_back(
                     range,
                     -(angle + RFansParams::HORIZONTAL_THETA[this->MODEL][j] + theta_time_offset[j]) * TO_RAD,
-                    // -(angle + RFansParams::HORIZONTAL_THETA[this->MODEL][j] + this->time_theta_offset[j]) * TO_RAD,
                     RFansParams::VERTICAL_THETA[this->MODEL][j] * TO_RAD
                 );
                 polars->intensity.emplace_back((point[3] & 0xff) / 255.0);
@@ -234,67 +233,6 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
     // std::cout << "diff: " << k << ", " << angle_sum << std::endl;
     return true;
 }
-
-// bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
-// {
-//     double divide = 12.0;
-//     if(this->MODEL <= 1) divide *= 2;   // R-Fans-16 or R-Fans-32
-//     const double loop_count = 360.0 / (0.09 * this->HZ / 5.0) / divide;
-//     std::vector<RFansPointsPacket> packets(loop_count+1);
-//     double angle_before = 0;
-//     for(int k=0; k<loop_count; k++){
-//         // boost::array<char, 1206> recv_data;
-//         char recv_data[1206];
-//         udp::endpoint endpoint;
-//         size_t len = points_socket->receive_from(boost::asio::buffer(recv_data), endpoint);
-//         if(len < 1206) continue;
-
-//         packets[k].groups.resize(12);
-//         for(int i=0; i<12; i++){
-//             auto *group = &recv_data[i*100];
-//             packets[k].groups[i].flag  = (group[0] & 0xff) << 8 | (group[1] & 0xff);
-//             packets[k].groups[i].angle =((group[3] & 0xff) << 8 | (group[2] & 0xff)) / 100.0 - 180.0 ;
-//             packets[k].groups[i].ranges.resize(32);
-//             packets[k].groups[i].intensity.resize(32);
-//             for(int j=0; j<32; j++){
-//                 auto *point = &group[3*j+4];
-//                 packets[k].groups[i].ranges[j]    =((point[1] & 0xff) << 8 | (point[0] & 0xff)) * 0.004;
-//                 packets[k].groups[i].intensity[j] = (point[3] & 0xff) / 255.0;
-//             }
-//         }
-//         packets[k].timestamp = (recv_data[1200] & 0xff) | (recv_data[1201] & 0xff) << 8 | (recv_data[1202] & 0xff) << 16 | (recv_data[1203] & 0xff) << 24;
-//         packets[k].factory   = (recv_data[1204] & 0xff) << 8 | (recv_data[1205] & 0xff);
-//         for(int i=1; i<12; i++){
-//             std::cout << "diff: " << packets[k].groups[i].angle - packets[k].groups[i-1].angle << std::endl;
-//         }
-//     }
-
-//     // Convert to (range - theta - phi)coordinate 
-//     const double angular_velocity = this->HZ * 360 / 1e9;  // [deg/us]
-//     double theta_time_offset[32];
-//     for(int i=0; i<32; i++) theta_time_offset[i] = angular_velocity * RFansParams::DELTA_TIME_US[this->MODEL][i];
-//     for(int i=0, packets_size=packets.size(); i<packets_size; i++){
-//         for(int j=0; j<12; j++){
-//             for(int k=0; k<32; k++){
-//                 if(packets[i].groups[j].ranges[k] > RFansParams::RANGE_MAX) continue;
-//                 polars->polars.emplace_back(
-//                     packets[i].groups[j].ranges[k],
-//                     -(packets[i].groups[j].angle + RFansParams::HORIZONTAL_THETA[this->MODEL][k] + theta_time_offset[k]) * TO_RAD,
-//                     RFansParams::VERTICAL_THETA[this->MODEL][k] * TO_RAD
-//                 );
-//                 polars->intensity.emplace_back(packets[i].groups[j].intensity[k]);
-//             }
-//         }
-//     }
-
-//     // 角度の正規化
-//     for(int i=0, size=polars->polars.size(); i<size; i++){
-//         if(polars->polars[i].theta < -M_PI)      polars->polars[i].theta += 2.0 * M_PI;
-//         else if(polars->polars[i].theta >  M_PI) polars->polars[i].theta -= 2.0 * M_PI;
-//     }
-
-//     return true;
-// }
 }
 }
 
