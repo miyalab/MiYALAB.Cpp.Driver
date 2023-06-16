@@ -42,8 +42,8 @@ int main(int argc, char **argv)
         double max = -1e9;
         double min = 1e9;
         for(int i=0, size=polars.polars.size(); i<size; i++){
-            max = std::max(max, polars.polars[i].theta);
-            min = std::min(min, polars.polars[i].theta);
+            max = std::max(max, polars.polars[i].range);
+            min = std::min(min, polars.polars[i].range);
             // std::cout << "calc xyz..." << std::endl;
             double x = polars.polars[i].range * std::cos(polars.polars[i].phi) * std::cos(polars.polars[i].theta);
             double y = polars.polars[i].range * std::cos(polars.polars[i].phi) * std::sin(polars.polars[i].theta);
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
         }
 
         cv::imshow("img", img);
-        // std::cout << "(" << min << ", " << max << ")" << std::endl;
+        std::cout << "(" << min << ", " << max << ")" << std::endl;
     }
     cv::destroyAllWindows();
     rfans.scanStop();

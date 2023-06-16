@@ -208,7 +208,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
             for(int j=0; j<32; j++){
                 auto *point = &group[3*j+4];
                 double range = ((point[1] & 0xff) << 8 | (point[0] & 0xff)) * 0.004;
-                if(range > RFansParams::RANGE_MAX) continue;
+                if(range > RFansParams::RANGE_MAX || range == 0) continue;
                 polars->polars.emplace_back(
                     range,
                     -(angle + RFansParams::HORIZONTAL_THETA[this->MODEL][j] + theta_time_offset[j]) * TO_RAD,
