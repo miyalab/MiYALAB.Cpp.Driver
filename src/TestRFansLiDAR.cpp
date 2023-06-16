@@ -38,7 +38,7 @@ int main(int argc, char **argv)
         // std::cout << "scan finish" << std::endl;
 
         constexpr double res = 0.02;
-        cv::Mat img(1000, 1000, CV_8UC3, cv::Scalar(0,0,0));
+        cv::Mat img(1000, 1000, CV_8UC3, cv::Scalar(200,200,200));
         double max = -1e9;
         double min = 1e9;
         for(int i=0, size=polars.polars.size(); i<size; i++){
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
             int py = img.rows/2 - x/res;
             if(0<=px && px<img.cols && 0<=py && py<img.rows){
                 // std::cout << "(x,y): (" << px << ", " << py << ")" << std::endl;
-                img.at<cv::Vec3b>(py,px) = cv::Vec3b(255,255,255);
+                img.at<cv::Vec3b>(py,px) = cv::Vec3b(0,0,0);
             }
             // std::cout << "draw point" << std::endl;
         }
