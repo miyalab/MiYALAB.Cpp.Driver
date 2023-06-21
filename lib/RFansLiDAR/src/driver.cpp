@@ -190,10 +190,8 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
 {
     polars->polars.clear();
     polars->channels.resize(2);
-    polars->channels[0].name = "ranges";
+    polars->channels[0].name = "intensity";
     polars->channels[0].values.clear();
-    polars->channels[1].name = "intensity";
-    polars->channels[1].values.clear();
 
     double divide = 12.0;
     if(this->MODEL <= 1) divide *= 2;   // R-Fans-16 or R-Fans-32
@@ -221,8 +219,7 @@ bool RFansDriver::getPoints(MiYALAB::Sensor::PointCloudPolar *polars)
                     -(angle + RFansParams::HORIZONTAL_THETA[this->MODEL][j] + theta_time_offset[j]) * TO_RAD,
                     RFansParams::VERTICAL_THETA[this->MODEL][j] * TO_RAD
                 );
-                polars->channels[0].values.emplace_back(range);
-                polars->channels[1].values.emplace_back((point[2] & 0xff) / 255.0);
+                polars->channels[0].values.emplace_back((point[2] & 0xff) / 255.0);
             }
             double diff = angle - angle_before;
             diff += 360.0 * (diff<0);
