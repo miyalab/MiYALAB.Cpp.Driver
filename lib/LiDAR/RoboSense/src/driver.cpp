@@ -1,7 +1,7 @@
 /*
  * MIT License
  * 
- * Copyright (c) 2023 MiYA LAB(K.Miyauchi)
+ * Copyright (c) 2025 MiYA LAB(K.Miyauchi)
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,6 +60,13 @@ constexpr char RS_LIDAR_MODEL_NAME[][13] = {
     "RS-Ruby Lite",
     "RS-Helios"
 };
+constexpr double SCAN_TIME_OFFSET[] = {
+    0.00000472, 0.00000157, 0.00001136, 0.00000787, 0.00001899, 0.00001517, 0.00002529, 0.00002214,
+    0.00003025, 0.00002901, 0.00003522, 0.00003398, 0.00004018, 0.00003770, 0.00004515, 0.00004267,
+    0.00000315, 0.00000000, 0.00000945, 0.00000630, 0.00001708, 0.00001326, 0.00002371, 0.00002056,
+    0.00002777, 0.00002653, 0.00003273, 0.00003149, 0.00003894, 0.00003646, 0.00004391, 0.00004142	
+};
+
 
 //-----------------------------
 // Method
@@ -89,8 +96,6 @@ bool RoboSense::startScan()
     this->return_mode = info.return_mode;
     this->vertical_angle_correct = info.vertical_angle_correct;
     this->horizontal_angle_correct = info.horizontal_angle_correct;
-
-    io_service io;
     this->is_running  = true;
     return true;
 }
@@ -112,7 +117,7 @@ bool RoboSense::getDeviceInfo(LiDARInfo *status)
     
     // ヘッダー
     status->header = (uint64_t)recv_data[0] << 56 | (uint64_t)recv_data[1] << 48 | (uint64_t)recv_data[2] << 40 | (uint64_t)recv_data[3] << 32
-                    | recv_data[4] << 24 | recv_data[5] << 16 | recv_data[6] << 8 | recv_data[7];
+                   | (uint64_t)recv_data[4] << 24 | (uint64_t)recv_data[5] << 16 | (uint64_t)recv_data[6] <<  8 | (uint64_t)recv_data[7];
     
     // モータ回転数
     status->motor_speed = recv_data[8] << 8 | recv_data[9];
@@ -134,16 +139,16 @@ bool RoboSense::getDeviceInfo(LiDARInfo *status)
     status->bottom_board_temp = 503.975 * (recv_data[350] << 8 | recv_data[351]) / 4095 - 273.15;
 
     // 垂直角度補正
-    auto correct_ptr = &recv_data[468];
+    const auto vertical_correct_ptr = &recv_data[468];
     for(int i=0; i<32; i++){
-        auto channel_ptr = &correct_ptr[3*i];
+        const auto channel_ptr = &vertical_correct_ptr[3*i];
         status->vertical_angle_correct.emplace_back((double)(channel_ptr[1] << 8 | channel_ptr[2]) * (channel_ptr[0] != 0 ? -1.0 : 1.0) * 0.01 * TO_RAD); 
     }
 
     // 水平補正角
-    correct_ptr = &recv_data[564];
+    const auto horizontal_correct_ptr = &recv_data[564];
     for(int i=0; i<32; i++){
-        auto channel_ptr = &correct_ptr[3*i];
+        const auto channel_ptr = &horizontal_correct_ptr[3*i];
         status->horizontal_angle_correct.emplace_back((double)(channel_ptr[1] << 8 | channel_ptr[2]) * (channel_ptr[0] != 0 ? -1.0 : 1.0) * 0.01 * TO_RAD); 
     }
     return true;
@@ -197,23 +202,23 @@ bool RoboSense::getPoints(PointCloud *points)
 
         // 点群データ読み込み
         double horizontal_angle = 0;
-        double delta_t = (double)(seconds - points->header.stamp.seconds) + (double)(nanoseconds - points->header.stamp.nanoseconds) / 1e9;
+        const double delta_t = (double)(seconds - points->header.stamp.seconds) + (double)(nanoseconds - points->header.stamp.nanoseconds) / 1e9;
         for(int i=0; i<12; i++){
-            auto block_ptr = &data_ptr[100*i];
+            const auto block_ptr = &data_ptr[100*i];
+            const double delta_t_correct = delta_t + 0.00005555555555 * (this->return_mode == 0 ? i/2 : i);
             horizontal_angle = (double)(block_ptr[2] << 8 | block_ptr[3]) * 0.01 * TO_RAD - M_PI;
 
             // チャンネル
             for(int j=0; j<32; j++){
                 // 距離, 反射率, 水平角, 垂直角, タイムスタンプからの経過時間
-                auto channel_ptr = &block_ptr[3*j+4];
+                const auto channel_ptr = &block_ptr[3*j+4];
                 points->channels[0].values.emplace_back((double)(channel_ptr[0] << 8 | channel_ptr[1]) * range_resolution);
                 points->channels[1].values.emplace_back((double)channel_ptr[2] / 255.0);
                 points->channels[2].values.emplace_back(-(horizontal_angle + this->horizontal_angle_correct[j]));
                 points->channels[3].values.emplace_back(this->vertical_angle_correct[j]);
-                points->channels[4].values.emplace_back(delta_t);
+                points->channels[4].values.emplace_back(delta_t_correct + SCAN_TIME_OFFSET[j]);
     
                 // 点情報
-                MiYALAB::Mathematics::Point point;
                 points->points.emplace_back(
                     points->channels[0].values[cnt] * std::cos(points->channels[3].values[cnt]) * std::cos(points->channels[2].values[cnt]),
                     points->channels[0].values[cnt] * std::cos(points->channels[3].values[cnt]) * std::sin(points->channels[2].values[cnt]),
@@ -225,8 +230,8 @@ bool RoboSense::getPoints(PointCloud *points)
 
         // 点群取得水平角度計算
         double delta_angle = horizontal_angle - pre_angle;
-        if(delta_angle < -M_PI)     delta_angle += PI_2;
-        else if(delta_angle > M_PI) delta_angle -= PI_2;
+        if     (delta_angle < -M_PI) delta_angle += PI_2;
+        else if(delta_angle >  M_PI) delta_angle -= PI_2;
         pre_angle = horizontal_angle;
         angle_sum += std::abs(delta_angle);
     }
