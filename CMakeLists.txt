@@ -37,11 +37,13 @@ include_directories(
 #ソースコード
 set(SRC 
     TestRFansLiDAR
+    TestHeliosLiDAR
 )
 
 set(LIBS
   MiYALAB.Cpp
   MiYALAB.Cpp.Sensor.RFansLiDAR
+  MiYALAB.Cpp.Device.LiDAR.RoboSense
   opencv_core
   opencv_highgui
   opencv_imgcodecs

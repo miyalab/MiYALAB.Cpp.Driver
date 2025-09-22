@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/lib/RFansLiDAR/include/**",
+                "${workspaceFolder}/lib/LiDAR/RoboSense/include/**",
                 "/usr/include/**"
             ],
             "defines": [],

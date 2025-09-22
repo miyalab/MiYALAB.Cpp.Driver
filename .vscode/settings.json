@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
-        "RFANS"
+        "RFANS",
+        "RoboSense"
     ],
     "files.associations": {
         "cmath": "cpp",
@@ -76,6 +77,12 @@
         "typeindex": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "*.ipp": "cpp"
-    }
+        "*.ipp": "cpp",
+        "charconv": "cpp",
+        "expected": "cpp",
+        "format": "cpp",
+        "shared_mutex": "cpp",
+        "span": "cpp"
+    },
+    "ros.distro": "jazzy"
 }

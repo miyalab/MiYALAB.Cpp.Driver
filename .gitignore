@@ -33,4 +33,5 @@
 
 /build/*
 /lib/RFansLiDAR/build/*
+/lib/LiDAR/RoboSense/build/*
 !.gitkeep

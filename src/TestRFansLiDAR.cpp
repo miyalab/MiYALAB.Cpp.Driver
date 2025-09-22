@@ -37,7 +37,7 @@ int main(int argc, char **argv)
         }
         // std::cout << "scan finish" << std::endl;
 
-        constexpr double res = 0.02;
+        constexpr double res = 0.1;
         cv::Mat img(1000, 1000, CV_8UC3, cv::Scalar(200,200,200));
         double max = -1e9;
         double min = 1e9;
